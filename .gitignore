@@ -1,0 +1,18 @@
+# Local environment
+.env
+.env.*
+!.env.example
+
+# IDE/editor files
+.idea/
+.vscode/
+
+# Go build/test artifacts
+bin/
+dist/
+*.test
+*.out
+coverage.out
+
+# OS files
+.DS_Store
