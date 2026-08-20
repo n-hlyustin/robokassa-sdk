@@ -1,3 +1,3 @@
-module github.com/n-hlyustin/sdk-go-main
+module github.com/n-hlyustin/robokassa-sdk
 
 go 1.22
