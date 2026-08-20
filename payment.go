@@ -63,14 +63,14 @@ func (s *PaymentService) BuildPaymentURL(req CreatePaymentRequest) (string, erro
 	return s.paymentURL + "?" + encodePaymentParams(params), nil
 }
 
-func (s *PaymentService) SendForm(ctx context.Context, req CreatePaymentRequest) (string, error) {
+func (s *PaymentService) SendForm(ctx context.Context, req CreatePaymentRequest) (*CreatePaymentResponse, error) {
 	params, sigParams, err := s.prepareCurlParams(req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	signatureValue, err := s.signer.CreatePaymentSignature(sigParams, s.merchantLogin, s.password1, s.hashType)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	params.Set("SignatureValue", signatureValue)
 
@@ -78,22 +78,21 @@ func (s *PaymentService) SendForm(ctx context.Context, req CreatePaymentRequest)
 		"Content-Type": "application/x-www-form-urlencoded",
 	})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if resp.Status != 200 {
-		return "", &SDKError{Op: "payment.send_form", StatusCode: resp.Status, Message: "unexpected HTTP status"}
+		return nil, &SDKError{Op: "payment.send_form", StatusCode: resp.Status, Message: "unexpected HTTP status"}
 	}
 
-	var data struct {
-		InvoiceID interface{} `json:"invoiceID"`
-	}
+	data := CreatePaymentResponse{}
 	if err := json.Unmarshal(resp.Body, &data); err != nil {
-		return "", &SDKError{Op: "payment.send_form", Message: "failed to parse JSON", Err: err}
+		return nil, &SDKError{Op: "payment.send_form", Message: "failed to parse JSON", Err: err}
 	}
-	if data.InvoiceID == nil {
-		return "", &SDKError{Op: "payment.send_form", Message: "invoiceID not found in response"}
+	if data.InvoiceID == "" {
+		return nil, &SDKError{Op: "payment.send_form", Message: "invoiceID not found in response"}
 	}
-	return s.invoiceURL + fmt.Sprint(data.InvoiceID), nil
+	data.InvoiceURL = s.invoiceURL + fmt.Sprint(data.InvoiceID)
+	return &data, nil
 }
 
 func (s *PaymentService) SendJWT(ctx context.Context, req CreateInvoiceRequest) (string, error) {

@@ -12,7 +12,7 @@ import (
 func main() {
 	client := shared.NewClient()
 
-	url, err := client.Payment().SendForm(context.Background(), robokassa.CreatePaymentRequest{
+	payment, err := client.Payment().SendForm(context.Background(), robokassa.CreatePaymentRequest{
 		OutSum:      "99.90",
 		InvID:       "1002",
 		Description: "Тестовый платеж",
@@ -38,5 +38,5 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println(url)
+	fmt.Println(payment.InvoiceURL)
 }

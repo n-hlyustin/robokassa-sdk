@@ -48,3 +48,8 @@ type CreatePaymentRequest struct {
 	ShpFields map[string]string
 	Extra     map[string]string
 }
+
+type CreatePaymentResponse struct {
+	InvoiceID  string `json:"invoiceID"`
+	InvoiceURL string
+}
