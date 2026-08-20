@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/robokassa/sdk-go-main/internal/signature"
+	"github.com/n-hlyustin/robokassa-sdk/internal/signature"
 )
 
 func TestGetInvoiceInformationListRejectsNon2xxStatus(t *testing.T) {

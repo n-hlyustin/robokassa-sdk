@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/robokassa/sdk-go-main/internal/signature"
+	"github.com/n-hlyustin/robokassa-sdk/internal/signature"
 )
 
 func TestVerifyResultURL(t *testing.T) {

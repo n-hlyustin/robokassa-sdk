@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/robokassa/sdk-go-main/internal/signature"
+	"github.com/n-hlyustin/robokassa-sdk/internal/signature"
 )
 
 func TestBuildPaymentURL(t *testing.T) {
@@ -263,10 +263,10 @@ func TestSendFormReturnsInvoiceURL(t *testing.T) {
 	wantURL := "https://auth.robokassa.ru/Merchant/Index/f87e382e-d2d7-c384-c212-fd584a44985c"
 	wantInvoiceID := "f87e382e-d2d7-c384-c212-fd584a44985c"
 	if got.InvoiceURL != wantURL {
-		t.Fatalf("unexpected invoice URL:\nwant %s\n got %s", want, got)
+		t.Fatalf("unexpected invoice URL:\nwant %s\n got %s", wantURL, got)
 	}
 	if got.InvoiceID != wantInvoiceID {
-		t.Fatalf("unexpected invoice URL:\nwant %s\n got %s", want, got)
+		t.Fatalf("unexpected invoice ID:\nwant %s\n got %s", wantInvoiceID, got)
 	}
 }
 

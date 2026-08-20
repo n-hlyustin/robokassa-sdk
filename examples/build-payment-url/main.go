@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
-	robokassa "github.com/robokassa/sdk-go-main"
-	"github.com/robokassa/sdk-go-main/examples/internal/shared"
+	"github.com/n-hlyustin/robokassa-sdk"
+	"github.com/n-hlyustin/robokassa-sdk/examples/internal/shared"
 )
 
 func main() {

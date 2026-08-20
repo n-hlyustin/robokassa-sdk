@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/robokassa/sdk-go-main/internal/signature"
+	"github.com/n-hlyustin/robokassa-sdk/internal/signature"
 )
 
 type Client struct {

@@ -18,11 +18,11 @@ Go SDK для интеграции с Robokassa: создание платеже
 ## Установка
 
 ```bash
-go get github.com/robokassa/sdk-go-main
+go get github.com/n-hlyustin/robokassa-sdk
 ```
 
 ```go
-import robokassa "github.com/robokassa/sdk-go-main"
+import "github.com/n-hlyustin/robokassa-sdk"
 ```
 
 ## Быстрый старт
@@ -36,7 +36,7 @@ import (
 	"log"
 	"time"
 
-	robokassa "github.com/robokassa/sdk-go-main"
+	robokassa "github.com/n-hlyustin/robokassa-sdk"
 )
 
 func main() {

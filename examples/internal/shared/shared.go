@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	robokassa "github.com/robokassa/sdk-go-main"
+	"github.com/n-hlyustin/robokassa-sdk"
 )
 
 func NewClient() *robokassa.Client {

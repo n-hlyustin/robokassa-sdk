@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/robokassa/sdk-go-main/examples/internal/shared"
+	"github.com/n-hlyustin/robokassa-sdk/examples/internal/shared"
 )
 
 func main() {
