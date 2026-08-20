@@ -15,7 +15,7 @@ type StatusService struct {
 	invoiceListURL string
 }
 
-func (s *StatusService) GetInvoiceInformationList(ctx context.Context, req InvoiceInformationListRequest) (InvoiceInformationListResponse, error) {
+func (s *StatusService) GetInvoiceInformationList(ctx context.Context, req InvoiceInformationListRequest) (*InvoiceInformationListResponse, error) {
 	if req.CurrentPage == 0 {
 		return nil, fmt.Errorf("missing required field: CurrentPage")
 	}
@@ -65,11 +65,15 @@ func (s *StatusService) GetInvoiceInformationList(ctx context.Context, req Invoi
 		return nil, &SDKError{Op: "status.get_invoice_information_list", StatusCode: resp.Status, Message: "unexpected HTTP status"}
 	}
 
-	var data map[string]interface{}
+	var data InvoiceInformationListResponse
 	if err := json.Unmarshal(resp.Body, &data); err != nil {
 		return nil, &SDKError{Op: "status.get_invoice_information_list", StatusCode: resp.Status, Message: "bad JSON in response", Err: err}
 	}
-	return data, nil
+
+	if !data.IsSuccess {
+		return nil, &SDKError{Op: "status.get_invoice_information_list", StatusCode: resp.Status, Message: "body status is not successed", Err: fmt.Errorf("%s", data.Message)}
+	}
+	return &data, nil
 }
 
 func normalizeInvoiceList(items []string) []string {
