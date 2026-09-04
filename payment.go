@@ -42,6 +42,7 @@ type PaymentService struct {
 	paymentURL    string
 	invoiceURL    string
 	paymentCurl   string
+	recurringCurl string
 	jwtAPIURL     string
 	hashType      string
 }
@@ -370,4 +371,188 @@ func appendEncodedParam(encoded *[]string, params url.Values, key string) {
 	for _, value := range values {
 		*encoded = append(*encoded, escapedKey+"="+url.QueryEscape(value))
 	}
+}
+
+// SendRecurring отправляет запрос на повторяющийся платеж
+func (s *PaymentService) SendRecurring(ctx context.Context, req RecurringPaymentRequest) (*RecurringPaymentResponse, error) {
+	params, sigParams, err := s.prepareRecurringParams(req)
+	if err != nil {
+		return nil, err
+	}
+
+	signatureValue, err := s.signer.CreatePaymentSignature(sigParams, s.merchantLogin, s.password1, s.hashType)
+	if err != nil {
+		return nil, err
+	}
+	params.Set("SignatureValue", signatureValue)
+
+	fmt.Println(s.recurringCurl)
+	resp, err := s.transport.post(ctx, s.recurringCurl, []byte(encodePaymentParams(params)), map[string]string{
+		"Content-Type": "application/x-www-form-urlencoded",
+	})
+	if err != nil {
+		return nil, err
+	}
+	if resp.Status != 200 {
+		return nil, &SDKError{Op: "payment.recurring", StatusCode: resp.Status, Message: "unexpected HTTP status"}
+	}
+
+	var data struct {
+		InvoiceID string `json:"InvoiceID"`
+		// другие поля, которые могут вернуться
+	}
+	if err := json.Unmarshal(resp.Body, &data); err != nil {
+		return nil, &SDKError{Op: "payment.recurring", Message: "failed to parse JSON", Err: err}
+	}
+	fmt.Println(string(resp.Body))
+
+	return &RecurringPaymentResponse{
+		InvoiceID: data.InvoiceID,
+		Raw:       resp.Body,
+	}, nil
+}
+
+// prepareRecurringParams подготавливает параметры для recurring запроса
+func (s *PaymentService) prepareRecurringParams(req RecurringPaymentRequest) (url.Values, map[string]string, error) {
+	// Проверка обязательных полей
+	if req.PreviousInvoiceID == "" {
+		return nil, nil, fmt.Errorf("required field: PreviousInvoiceID")
+	}
+	if req.InvoiceID == "" || req.InvoiceID == "0" {
+		return nil, nil, fmt.Errorf("required field: InvoiceID (must not be empty or 0)")
+	}
+	if req.OutSum == "" {
+		return nil, nil, fmt.Errorf("required field: OutSum")
+	}
+	if req.Description == "" {
+		return nil, nil, fmt.Errorf("required field: Description")
+	}
+
+	params := url.Values{}
+
+	// Основные параметры
+	params.Set("MerchantLogin", s.merchantLogin)
+	params.Set("PreviousInvoiceID", req.PreviousInvoiceID)
+	params.Set("InvoiceID", req.InvoiceID)
+	params.Set("OutSum", req.OutSum)
+	params.Set("Description", req.Description)
+	params.Set("Recurring", "true")
+
+	// Необязательные параметры
+	if req.Culture != "" {
+		params.Set("Culture", req.Culture)
+	}
+	if req.Encoding != "" {
+		params.Set("Encoding", req.Encoding)
+	}
+	if req.Email != "" {
+		params.Set("Email", req.Email)
+	}
+	if req.StepByStep != "" {
+		params.Set("StepByStep", req.StepByStep)
+	}
+	if req.ResultURL2 != "" {
+		params.Set("ResultUrl2", req.ResultURL2)
+	}
+	if req.SuccessURL2 != "" {
+		params.Set("SuccessUrl2", req.SuccessURL2)
+	}
+	if req.SuccessURL2Method != "" {
+		params.Set("SuccessUrl2Method", req.SuccessURL2Method)
+	}
+	if req.FailURL2 != "" {
+		params.Set("FailUrl2", req.FailURL2)
+	}
+	if req.FailURL2Method != "" {
+		params.Set("FailUrl2Method", req.FailURL2Method)
+	}
+	if req.Token != "" {
+		params.Set("Token", req.Token)
+	}
+
+	// Фискализация
+	receipt := ""
+	if req.Receipt != nil {
+		raw, err := json.Marshal(req.Receipt)
+		if err != nil {
+			return nil, nil, &SDKError{Op: "payment.prepare_recurring", Message: "failed to encode receipt", Err: err}
+		}
+		receipt = url.QueryEscape(string(raw))
+		params.Set("Receipt", receipt)
+	}
+
+	// Shp-поля
+	keys := make([]string, 0, len(req.ShpFields))
+	for key := range req.ShpFields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		params.Set(key, req.ShpFields[key])
+	}
+
+	// Extra параметры (проверка на зарезервированные)
+	for key, value := range req.Extra {
+		if isReservedPaymentParam(key) || strings.HasPrefix(strings.ToLower(key), "shp_") {
+			return nil, nil, fmt.Errorf("reserved payment parameter %q must be set via typed fields", key)
+		}
+		params.Set(key, value)
+	}
+
+	// Формируем параметры для подписи (без PreviousInvoiceID)
+	sigParams := map[string]string{
+		"OutSum": req.OutSum,
+		"InvId":  req.InvoiceID,
+	}
+
+	// Добавляем параметры для подписи (кроме PreviousInvoiceID)
+	for _, item := range []struct {
+		key   string
+		value string
+	}{
+		{"Receipt", receipt},
+		{"StepByStep", req.StepByStep},
+		{"ResultUrl2", req.ResultURL2},
+		{"SuccessUrl2", req.SuccessURL2},
+		{"SuccessUrl2Method", req.SuccessURL2Method},
+		{"FailUrl2", req.FailURL2},
+		{"FailUrl2Method", req.FailURL2Method},
+		{"Token", req.Token},
+	} {
+		if item.value != "" {
+			sigParams[item.key] = item.value
+		}
+	}
+
+	// Добавляем Shp-поля в подпись
+	for _, key := range keys {
+		sigParams[key] = req.ShpFields[key]
+	}
+
+	return params, sigParams, nil
+}
+
+// GetRecurringURL возвращает URL для повторяющегося платежа
+func (s *PaymentService) GetRecurringURL(req RecurringPaymentRequest) (string, error) {
+	params, err := s.prepareRecurringFormParams(req)
+	if err != nil {
+		return "", err
+	}
+	return s.recurringCurl + "?" + encodePaymentParams(params), nil
+}
+
+// prepareRecurringFormParams подготавливает параметры формы для recurring
+func (s *PaymentService) prepareRecurringFormParams(req RecurringPaymentRequest) (url.Values, error) {
+	params, sigParams, err := s.prepareRecurringParams(req)
+	if err != nil {
+		return nil, err
+	}
+
+	signatureValue, err := s.signer.CreatePaymentSignature(sigParams, s.merchantLogin, s.password1, s.hashType)
+	if err != nil {
+		return nil, err
+	}
+	params.Set("SignatureValue", signatureValue)
+
+	return params, nil
 }

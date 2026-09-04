@@ -13,6 +13,50 @@ type CreateInvoiceRequest struct {
 	FailURL2Data     interface{} `json:"FailUrl2Data,omitempty"`
 }
 
+// RecurringPaymentRequest представляет запрос на повторяющийся платеж
+type RecurringPaymentRequest struct {
+	// PreviousInvoiceID - номер счета первого платежа в серии (обязательный)
+	PreviousInvoiceID string `json:"PreviousInvoiceID"`
+	// InvoiceID - номер нового счета, сгенерированный магазином (обязательный)
+	InvoiceID string `json:"InvoiceID"`
+	// OutSum - сумма платежа (обязательный)
+	OutSum string `json:"OutSum"`
+	// Description - описание платежа (обязательный)
+	Description string `json:"Description"`
+	// Culture - языковая локализация (ru/en)
+	Culture string `json:"Culture,omitempty"`
+	// Encoding - кодировка (utf-8/windows-1251)
+	Encoding string `json:"Encoding,omitempty"`
+	// Email - email покупателя
+	Email string `json:"Email,omitempty"`
+	// Receipt - данные для фискализации
+	Receipt interface{} `json:"Receipt,omitempty"`
+	// StepByStep - пошаговый режим
+	StepByStep string `json:"StepByStep,omitempty"`
+	// ResultURL2 - URL для уведомлений
+	ResultURL2 string `json:"ResultUrl2,omitempty"`
+	// SuccessURL2 - URL для успешной оплаты
+	SuccessURL2 string `json:"SuccessUrl2,omitempty"`
+	// SuccessURL2Method - метод для SuccessURL2 (GET/POST)
+	SuccessURL2Method string `json:"SuccessUrl2Method,omitempty"`
+	// FailURL2 - URL для неуспешной оплаты
+	FailURL2 string `json:"FailUrl2,omitempty"`
+	// FailURL2Method - метод для FailURL2 (GET/POST)
+	FailURL2Method string `json:"FailUrl2Method,omitempty"`
+	// Token - токен для привязки карты
+	Token string `json:"Token,omitempty"`
+	// ShpFields - пользовательские поля с префиксом Shp_
+	ShpFields map[string]string `json:"-"`
+	// Extra - дополнительные параметры
+	Extra map[string]string `json:"-"`
+}
+
+// RecurringPaymentResponse представляет ответ на повторяющийся платеж
+type RecurringPaymentResponse struct {
+	InvoiceID string `json:"InvoiceID"`
+	Raw       []byte
+}
+
 type InvoiceItem struct {
 	Name          string  `json:"Name"`
 	Quantity      float64 `json:"Quantity"`

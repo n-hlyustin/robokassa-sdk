@@ -49,6 +49,7 @@ func NewClient(cfg Config, opts ...Option) (*Client, error) {
 		paymentURL:    cfg.PaymentURL,
 		invoiceURL:    cfg.PaymentInvoiceURL,
 		paymentCurl:   cfg.PaymentCurlURL,
+		recurringCurl: cfg.RecurringCurlURL,
 		jwtAPIURL:     cfg.JWTAPIURL,
 		hashType:      cfg.HashType,
 	}

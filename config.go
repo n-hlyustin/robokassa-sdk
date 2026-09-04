@@ -11,6 +11,7 @@ const (
 	defaultPaymentURL        = "https://auth.robokassa.ru/Merchant/Index.aspx"
 	defaultPaymentInvoiceURL = "https://auth.robokassa.ru/Merchant/Index/"
 	defaultPaymentCurlURL    = "https://auth.robokassa.ru/Merchant/Indexjson.aspx"
+	defaultRecurringCurlURL  = "https://auth.robokassa.ru/Merchant/Recurring"
 	defaultJWTAPIURL         = "https://services.robokassa.ru/InvoiceServiceWebApi/api/CreateInvoice"
 	defaultInvoiceListURL    = "https://services.robokassa.ru/InvoiceServiceWebApi/api/GetInvoiceInformationList"
 	defaultWebServiceURL     = "https://auth.robokassa.ru/Merchant/WebService/Service.asmx"
@@ -34,6 +35,7 @@ type Config struct {
 	PaymentURL        string
 	PaymentInvoiceURL string
 	PaymentCurlURL    string
+	RecurringCurlURL  string
 	JWTAPIURL         string
 	WebServiceURL     string
 	CurrenciesURL     string
@@ -100,6 +102,9 @@ func (c *Config) normalize() error {
 	}
 	if c.CheckStatusURL == "" {
 		c.CheckStatusURL = defaultCheckStatusURL
+	}
+	if c.RecurringCurlURL == "" {
+		c.RecurringCurlURL = defaultRecurringCurlURL
 	}
 	return nil
 }
