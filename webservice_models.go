@@ -8,10 +8,11 @@ type PaymentMethodsResponse struct {
 }
 
 type OpStateResponse struct {
-	RawXML  string
-	Result  XMLResult
-	State   *InvoiceState
-	RawData map[string]interface{}
+	RawXML     string
+	Result     XMLResult
+	State      *InvoiceState
+	UserFields map[string]string
+	RawData    map[string]interface{}
 }
 
 type CurrenciesResponse struct {

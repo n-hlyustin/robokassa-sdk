@@ -137,10 +137,11 @@ func (s *WebService) OpState(ctx context.Context, invoiceID int64) (*OpStateResp
 	}
 	data, _ := nodeToMap(root).(map[string]interface{})
 	return &OpStateResponse{
-		RawXML:  string(resp.Body),
-		Result:  extractXMLResult(data),
-		State:   extractInvoiceState(data),
-		RawData: data,
+		RawXML:     string(resp.Body),
+		Result:     extractXMLResult(data),
+		State:      extractInvoiceState(data),
+		UserFields: extractUserFields(data),
+		RawData:    data,
 	}, nil
 }
 
@@ -326,6 +327,40 @@ func extractInvoiceState(data map[string]interface{}) *InvoiceState {
 		}
 	}
 	return nil
+}
+
+func extractUserFields(data map[string]interface{}) map[string]string {
+	result := make(map[string]string)
+	candidates := flattenMapsByKey(data, "UserFields")
+	for _, candidate := range candidates {
+		userFieldsNode, ok := candidate.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		fieldData, exists := userFieldsNode["Field"]
+		if !exists {
+			continue
+		}
+		var fieldsList []interface{}
+		switch typed := fieldData.(type) {
+		case []interface{}:
+			fieldsList = typed
+		default:
+			fieldsList = []interface{}{typed}
+		}
+		for _, fieldObj := range fieldsList {
+			fieldMap, ok := fieldObj.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			name := stringify(fieldMap["Name"])
+			value := stringify(fieldMap["Value"])
+			if name != "" {
+				result[name] = value
+			}
+		}
+	}
+	return result
 }
 
 func flattenMapsByKey(data map[string]interface{}, keys ...string) []interface{} {
