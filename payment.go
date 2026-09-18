@@ -387,6 +387,7 @@ func (s *PaymentService) SendRecurring(ctx context.Context, req RecurringPayment
 	params.Set("SignatureValue", signatureValue)
 
 	fmt.Println(s.recurringCurl)
+	fmt.Println(encodePaymentParams(params))
 	resp, err := s.transport.post(ctx, s.recurringCurl, []byte(encodePaymentParams(params)), map[string]string{
 		"Content-Type": "application/x-www-form-urlencoded",
 	})
@@ -394,6 +395,7 @@ func (s *PaymentService) SendRecurring(ctx context.Context, req RecurringPayment
 		return nil, err
 	}
 	if resp.Status != 200 {
+		fmt.Println(string(resp.Body))
 		return nil, &SDKError{Op: "payment.recurring", StatusCode: resp.Status, Message: "unexpected HTTP status"}
 	}
 
