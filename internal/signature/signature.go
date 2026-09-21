@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash"
+	"net/url"
 	"sort"
 	"strings"
 )
@@ -32,6 +33,16 @@ type PaymentSignatureParams struct {
 	Token             string
 	Password          string
 	ShpFields         map[string]string
+}
+
+type RecurringSignatureParams struct {
+	Login     string
+	OutSum    string
+	InvID     string
+	Receipt   string
+	Token     string
+	Password  string
+	ShpFields map[string]string
 }
 
 func New(defaultAlgo string) *Service {
@@ -122,6 +133,49 @@ func (s *Service) CreatePaymentSignatureFromParams(params PaymentSignatureParams
 	parts = append(parts, params.Password)
 	parts = append(parts, sortedShpPairs(params.ShpFields)...)
 
+	sum, err := hashBytes(normalizeAlgo(algo, s.defaultAlgo), []byte(strings.Join(parts, ":")))
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(sum), nil
+}
+
+func (s *Service) CreateRecurringSignature(params map[string]string, login, password1, algo string) (string, error) {
+	shpFields := make(map[string]string)
+	for key, value := range params {
+		if strings.HasPrefix(strings.ToLower(key), "shp_") {
+			shpFields[key] = value
+		}
+	}
+
+	return s.CreateRecurringSignatureFromParams(RecurringSignatureParams{
+		Login:     login,
+		OutSum:    params["OutSum"],
+		InvID:     firstNonEmpty(params["InvId"], params["InvID"], params["InvoiceID"]),
+		Receipt:   params["Receipt"],
+		Token:     params["Token"],
+		Password:  password1,
+		ShpFields: shpFields,
+	}, algo)
+}
+
+func (s *Service) CreateRecurringSignatureFromParams(params RecurringSignatureParams, algo string) (string, error) {
+	parts := make([]string, 0, 6+len(params.ShpFields))
+	if params.Login != "" {
+		parts = append(parts, params.Login)
+	}
+	parts = append(parts, params.OutSum, params.InvID)
+	if params.Receipt != "" {
+		doubleEncodedReceipt := url.QueryEscape(params.Receipt)
+		parts = append(parts, doubleEncodedReceipt)
+	}
+	if params.Token != "" {
+		parts = append(parts, params.Token)
+	}
+	parts = append(parts, params.Password)
+	parts = append(parts, sortedShpPairs(params.ShpFields)...)
+
+	fmt.Println("hash string: ", strings.Join(parts, ":"))
 	sum, err := hashBytes(normalizeAlgo(algo, s.defaultAlgo), []byte(strings.Join(parts, ":")))
 	if err != nil {
 		return "", err

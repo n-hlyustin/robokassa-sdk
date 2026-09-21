@@ -13,6 +13,8 @@ var paymentParamOrder = []string{
 	"MerchantLogin",
 	"OutSum",
 	"InvId",
+	"InvoiceID",
+	"PreviousInvoiceID",
 	"Description",
 	"Receipt",
 	"SignatureValue",
@@ -53,6 +55,7 @@ type signer interface {
 	JWTSignMD5(string, string, string) string
 	EncodeJWTParts(interface{}, interface{}) (string, string, string, error)
 	CreatePaymentSignature(map[string]string, string, string, string) (string, error)
+	CreateRecurringSignature(map[string]string, string, string, string) (string, error)
 	SignOpState(string, string, string, string) (string, error)
 }
 
@@ -304,6 +307,7 @@ func isReservedPaymentParam(key string) bool {
 		"outsum",
 		"invid",
 		"invoiceid",
+		"previousinvoiceid",
 		"description",
 		"signaturevalue",
 		"culture",
@@ -373,6 +377,20 @@ func appendEncodedParam(encoded *[]string, params url.Values, key string) {
 	}
 }
 
+func parseRecurringResponse(body []byte) (string, error) {
+	text := strings.TrimSpace(string(body))
+	if text == "" {
+		return "", fmt.Errorf("empty response body")
+	}
+
+	upper := strings.ToUpper(text)
+	if strings.HasPrefix(upper, "OK") {
+		return text[2:], nil
+	}
+
+	return "", fmt.Errorf("unexpected recurring response %q", text)
+}
+
 // SendRecurring отправляет запрос на повторяющийся платеж
 func (s *PaymentService) SendRecurring(ctx context.Context, req RecurringPaymentRequest) (*RecurringPaymentResponse, error) {
 	params, sigParams, err := s.prepareRecurringParams(req)
@@ -380,7 +398,7 @@ func (s *PaymentService) SendRecurring(ctx context.Context, req RecurringPayment
 		return nil, err
 	}
 
-	signatureValue, err := s.signer.CreatePaymentSignature(sigParams, s.merchantLogin, s.password1, s.hashType)
+	signatureValue, err := s.signer.CreateRecurringSignature(sigParams, s.merchantLogin, s.password1, s.hashType)
 	if err != nil {
 		return nil, err
 	}
@@ -388,6 +406,7 @@ func (s *PaymentService) SendRecurring(ctx context.Context, req RecurringPayment
 
 	fmt.Println(s.recurringCurl)
 	fmt.Println(encodePaymentParams(params))
+	fmt.Println("SignatureValue", signatureValue)
 	resp, err := s.transport.post(ctx, s.recurringCurl, []byte(encodePaymentParams(params)), map[string]string{
 		"Content-Type": "application/x-www-form-urlencoded",
 	})
@@ -395,21 +414,16 @@ func (s *PaymentService) SendRecurring(ctx context.Context, req RecurringPayment
 		return nil, err
 	}
 	if resp.Status != 200 {
-		fmt.Println(string(resp.Body))
-		return nil, &SDKError{Op: "payment.recurring", StatusCode: resp.Status, Message: "unexpected HTTP status"}
+		return nil, &SDKError{Op: "payment.recurring", StatusCode: resp.Status, Message: string(resp.Body)}
 	}
 
-	var data struct {
-		InvoiceID string `json:"InvoiceID"`
-		// другие поля, которые могут вернуться
+	invoiceID, err := parseRecurringResponse(resp.Body)
+	if err != nil {
+		return nil, &SDKError{Op: "payment.recurring", Message: "failed to parse response", Err: err}
 	}
-	if err := json.Unmarshal(resp.Body, &data); err != nil {
-		return nil, &SDKError{Op: "payment.recurring", Message: "failed to parse JSON", Err: err}
-	}
-	fmt.Println(string(resp.Body))
 
 	return &RecurringPaymentResponse{
-		InvoiceID: data.InvoiceID,
+		InvoiceID: invoiceID,
 		Raw:       resp.Body,
 	}, nil
 }
