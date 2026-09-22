@@ -452,7 +452,6 @@ func (s *PaymentService) prepareRecurringParams(req RecurringPaymentRequest) (ur
 	params.Set("InvoiceID", req.InvoiceID)
 	params.Set("OutSum", req.OutSum)
 	params.Set("Description", req.Description)
-	params.Set("Recurring", "true")
 
 	// Необязательные параметры
 	if req.Culture != "" {
