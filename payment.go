@@ -492,7 +492,7 @@ func (s *PaymentService) prepareRecurringParams(req RecurringPaymentRequest) (ur
 		if err != nil {
 			return nil, nil, &SDKError{Op: "payment.prepare_recurring", Message: "failed to encode receipt", Err: err}
 		}
-		receipt = url.QueryEscape(string(raw))
+		receipt = string(raw)
 		params.Set("Receipt", receipt)
 	}
 
