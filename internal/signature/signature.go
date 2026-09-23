@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash"
-	"net/url"
 	"sort"
 	"strings"
 )
@@ -166,8 +165,7 @@ func (s *Service) CreateRecurringSignatureFromParams(params RecurringSignaturePa
 	}
 	parts = append(parts, params.OutSum, params.InvID)
 	if params.Receipt != "" {
-		doubleEncodedReceipt := url.QueryEscape(params.Receipt)
-		parts = append(parts, doubleEncodedReceipt)
+		parts = append(parts, params.Receipt)
 	}
 	if params.Token != "" {
 		parts = append(parts, params.Token)

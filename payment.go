@@ -1,9 +1,11 @@
 package robokassa
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"mime/multipart"
 	"net/url"
 	"sort"
 	"strings"
@@ -391,6 +393,63 @@ func parseRecurringResponse(body []byte) (string, error) {
 	return "", fmt.Errorf("unexpected recurring response %q", text)
 }
 
+func encodeMultipartParams(params url.Values) ([]byte, string, error) {
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+
+	writeField := func(key string) error {
+		values, ok := params[key]
+		if !ok {
+			return nil
+		}
+		for _, value := range values {
+			if err := writer.WriteField(key, value); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	seen := make(map[string]bool, len(paymentParamOrder))
+	for _, key := range paymentParamOrder {
+		if err := writeField(key); err != nil {
+			return nil, "", err
+		}
+		seen[key] = true
+	}
+
+	shpKeys := make([]string, 0)
+	extraKeys := make([]string, 0)
+	for key := range params {
+		if seen[key] {
+			continue
+		}
+		if strings.HasPrefix(strings.ToLower(key), "shp_") {
+			shpKeys = append(shpKeys, key)
+			continue
+		}
+		extraKeys = append(extraKeys, key)
+	}
+	sort.Strings(shpKeys)
+	sort.Strings(extraKeys)
+
+	for _, key := range shpKeys {
+		if err := writeField(key); err != nil {
+			return nil, "", err
+		}
+	}
+	for _, key := range extraKeys {
+		if err := writeField(key); err != nil {
+			return nil, "", err
+		}
+	}
+
+	if err := writer.Close(); err != nil {
+		return nil, "", err
+	}
+	return buf.Bytes(), writer.FormDataContentType(), nil
+}
+
 // SendRecurring отправляет запрос на повторяющийся платеж
 func (s *PaymentService) SendRecurring(ctx context.Context, req RecurringPaymentRequest) (*RecurringPaymentResponse, error) {
 	params, sigParams, err := s.prepareRecurringParams(req)
@@ -404,11 +463,16 @@ func (s *PaymentService) SendRecurring(ctx context.Context, req RecurringPayment
 	}
 	params.Set("SignatureValue", signatureValue)
 
-	fmt.Println(s.recurringCurl)
-	fmt.Println(encodePaymentParams(params))
+	body, contentType, err := encodeMultipartParams(params)
+	if err != nil {
+		return nil, &SDKError{Op: "payment.recurring", Message: "failed to encode multipart body", Err: err}
+	}
+	fmt.Println("--- START BODY ---")
+	fmt.Println(string(body))
+	fmt.Println("--- END BODY ---")
 	fmt.Println("SignatureValue", signatureValue)
-	resp, err := s.transport.post(ctx, s.recurringCurl, []byte(encodePaymentParams(params)), map[string]string{
-		"Content-Type": "application/x-www-form-urlencoded",
+	resp, err := s.transport.post(ctx, s.recurringCurl, body, map[string]string{
+		"Content-Type": contentType,
 	})
 	if err != nil {
 		return nil, err
@@ -485,14 +549,14 @@ func (s *PaymentService) prepareRecurringParams(req RecurringPaymentRequest) (ur
 		params.Set("Token", req.Token)
 	}
 
-	// Фискализация
+	// Фискализация: один URL-encode для multipart body и подписи
 	receipt := ""
 	if req.Receipt != nil {
 		raw, err := json.Marshal(req.Receipt)
 		if err != nil {
 			return nil, nil, &SDKError{Op: "payment.prepare_recurring", Message: "failed to encode receipt", Err: err}
 		}
-		receipt = string(raw)
+		receipt = url.QueryEscape(string(raw))
 		params.Set("Receipt", receipt)
 	}
 
